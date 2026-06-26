@@ -18,6 +18,13 @@ CREATE TABLE IF NOT EXISTS article_text (
     file_id TEXT PRIMARY KEY REFERENCES file_info(file_id),
     full_text TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS article_tags (
+    file_id TEXT NOT NULL REFERENCES file_info(file_id),
+    tag TEXT NOT NULL,
+    source TEXT NOT NULL CHECK(source IN ('intrinsic', 'expanded')),
+    PRIMARY KEY (file_id, tag, source)
+);
 """
 
 

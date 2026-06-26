@@ -26,6 +26,11 @@ def test_creates_article_text_table(tmp_path):
     assert _column_names(conn, "article_text") == {"file_id", "full_text"}
 
 
+def test_creates_article_tags_table(tmp_path):
+    conn = get_connection(tmp_path / "test.db")
+    assert _column_names(conn, "article_tags") == {"file_id", "tag", "source"}
+
+
 def test_is_idempotent(tmp_path):
     db_path = tmp_path / "test.db"
     get_connection(db_path).close()
