@@ -61,3 +61,61 @@ def test_comparison_row_count_and_no_self_pairs(tmp_path, retrieval_engine_binar
     conn = sqlite3.connect(db_path)
     assert conn.execute("SELECT COUNT(*) FROM comparison").fetchone()[0] == 54
     assert conn.execute("SELECT COUNT(*) FROM comparison WHERE source_id = target_id").fetchone()[0] == 0
+
+
+def test_comparison_incremental_skips_old_old_pairs(tmp_path, retrieval_engine_binary):
+    db_path = tmp_path / "test.db"
+    token_freq_dir = tmp_path / "token_freq"
+    conn = get_connection(db_path)
+    ingest_pdf(ARTICLES_DIR / FIXTURE_FILES[0], conn, token_freq_dir=token_freq_dir)
+    ingest_pdf(ARTICLES_DIR / FIXTURE_FILES[1], conn, token_freq_dir=token_freq_dir)
+    conn.close()
+
+    run_engine(retrieval_engine_binary, ["--compute-relational-distance", str(db_path)])
+    run_engine(retrieval_engine_binary, ["--compute-tfidf", str(db_path)])
+    run_engine(retrieval_engine_binary,
+               ["--compute-comparison", str(db_path), "--incremental", "--comparison-score-threshold", "0.0"])
+
+    conn = sqlite3.connect(db_path)
+    before = conn.execute(
+        "SELECT distance FROM comparison WHERE source_id='10.1016/j.aej.2026.04.048' "
+        "AND target_id='10.1016/j.ejcon.2026.101527'"
+    ).fetchone()[0]
+    conn.close()
+
+    conn = get_connection(db_path)
+    ingest_pdf(ARTICLES_DIR / FIXTURE_FILES[2], conn, token_freq_dir=token_freq_dir)
+    ingest_pdf(ARTICLES_DIR / FIXTURE_FILES[3], conn, token_freq_dir=token_freq_dir)
+    conn.close()
+
+    run_engine(retrieval_engine_binary, ["--compute-relational-distance", str(db_path), "--incremental"])
+    run_engine(retrieval_engine_binary, ["--compute-tfidf", str(db_path)])
+    run_engine(retrieval_engine_binary,
+               ["--compute-comparison", str(db_path), "--incremental", "--comparison-score-threshold", "0.0"])
+
+    conn = sqlite3.connect(db_path)
+    after = conn.execute(
+        "SELECT distance FROM comparison WHERE source_id='10.1016/j.aej.2026.04.048' "
+        "AND target_id='10.1016/j.ejcon.2026.101527'"
+    ).fetchone()[0]
+    new_pair_count = conn.execute(
+        "SELECT COUNT(*) FROM comparison WHERE source_id = '10.1016/j.conengprac.2026.106951'"
+    ).fetchone()[0]
+
+    assert after == before
+    assert new_pair_count > 0
+
+
+def test_comparison_incremental_on_empty_db_equals_full(tmp_path, retrieval_engine_binary):
+    db_path = _make_eight_article_db(tmp_path, retrieval_engine_binary)
+    result = run_engine(retrieval_engine_binary,
+                         ["--compute-comparison", str(db_path), "--incremental", "--comparison-score-threshold", "0.15"])
+    assert result.returncode == 0, result.stderr
+
+    conn = sqlite3.connect(db_path)
+    assert conn.execute("SELECT COUNT(*) FROM comparison").fetchone()[0] == 54
+    forward = conn.execute(
+        "SELECT distance FROM comparison WHERE source_id='10.1016/j.conengprac.2026.106951' "
+        "AND target_id='10.1016/j.ejcon.2026.101527'"
+    ).fetchone()[0]
+    assert forward == 0.6364606364488763

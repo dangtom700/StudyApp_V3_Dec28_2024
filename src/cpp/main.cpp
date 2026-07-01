@@ -68,6 +68,8 @@ int main(int argc, char **argv)
             {
                 if (args[i] == "--comparison-score-threshold")
                     config.comparison_score_threshold = std::stod(require_arg(args, i, args[i]));
+                else if (args[i] == "--incremental")
+                    config.incremental = true;
                 else
                     throw std::runtime_error("unknown flag: " + args[i]);
             }

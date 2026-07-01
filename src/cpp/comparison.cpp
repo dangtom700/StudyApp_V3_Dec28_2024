@@ -2,6 +2,7 @@
 #include "sql_utils.hpp"
 
 #include <map>
+#include <set>
 #include <sqlite3.h>
 #include <string>
 #include <unordered_map>
@@ -13,15 +14,36 @@ namespace comparison
     {
         sqlite3 *db = sql_utils::open(db_path.string());
 
-        sql_utils::execute(db, "DROP TABLE IF EXISTS comparison;");
+        if (config.incremental)
+        {
+            sql_utils::execute(db, R"(
+                CREATE TABLE IF NOT EXISTS comparison (
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    distance  REAL NOT NULL CHECK(distance > 0.0),
+                    PRIMARY KEY (source_id, target_id)
+                ) WITHOUT ROWID;
+            )");
+        }
+        else
+        {
+            sql_utils::execute(db, "DROP TABLE IF EXISTS comparison;");
+            sql_utils::execute(db, R"(
+                CREATE TABLE comparison (
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    distance  REAL NOT NULL CHECK(distance > 0.0),
+                    PRIMARY KEY (source_id, target_id)
+                ) WITHOUT ROWID;
+            )");
+        }
         sql_utils::execute(db, R"(
-            CREATE TABLE comparison (
-                source_id TEXT NOT NULL,
-                target_id TEXT NOT NULL,
-                distance  REAL NOT NULL CHECK(distance > 0.0),
-                PRIMARY KEY (source_id, target_id)
-            ) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS comparison_seen (
+                file_id TEXT PRIMARY KEY
+            );
         )");
+        if (!config.incremental)
+            sql_utils::execute(db, "DELETE FROM comparison_seen;");
 
         std::map<std::string, std::unordered_map<std::string, std::pair<int, double>>> by_file;
         sqlite3_stmt *select_stmt = sql_utils::prepare(db, "SELECT file_id, token, frequency, weight FROM relation_distance_filtered;");
@@ -34,6 +56,31 @@ namespace comparison
             by_file[file_id][token] = {freq, weight};
         }
         sqlite3_finalize(select_stmt);
+
+        std::set<std::string> seen_ids;
+        if (config.incremental)
+        {
+            sqlite3_stmt *seen_stmt = sql_utils::prepare(db, "SELECT file_id FROM comparison_seen;");
+            while (sqlite3_step(seen_stmt) == SQLITE_ROW)
+                seen_ids.insert(std::string(reinterpret_cast<const char *>(sqlite3_column_text(seen_stmt, 0))));
+            sqlite3_finalize(seen_stmt);
+        }
+
+        std::vector<std::string> file_ids;
+        for (const auto &[file_id, _] : by_file)
+            file_ids.push_back(file_id);
+
+        std::vector<std::string> new_ids;
+        for (const auto &file_id : file_ids)
+            if (seen_ids.find(file_id) == seen_ids.end())
+                new_ids.push_back(file_id);
+
+        if (config.incremental && new_ids.empty())
+        {
+            sqlite3_close(db);
+            return;
+        }
+        std::set<std::string> new_id_set(new_ids.begin(), new_ids.end());
 
         std::unordered_map<std::string, double> tfidf_by_word;
         sqlite3_stmt *tfidf_stmt = sql_utils::prepare(db, "SELECT word, tf_idf FROM tf_idf;");
@@ -63,11 +110,7 @@ namespace comparison
             boosted_by_file[file_id] = std::move(boosted);
         }
 
-        std::vector<std::string> file_ids;
-        for (const auto &[file_id, _] : by_file)
-            file_ids.push_back(file_id);
-
-        sqlite3_stmt *insert_stmt = sql_utils::prepare(db, "INSERT INTO comparison (source_id, target_id, distance) VALUES (?, ?, ?);");
+        sqlite3_stmt *insert_stmt = sql_utils::prepare(db, "INSERT OR REPLACE INTO comparison (source_id, target_id, distance) VALUES (?, ?, ?);");
 
         sql_utils::execute(db, "BEGIN TRANSACTION;");
         for (const auto &source_id : file_ids)
@@ -77,6 +120,11 @@ namespace comparison
             {
                 if (source_id == target_id)
                     continue;
+                if (config.incremental
+                    && new_id_set.find(source_id) == new_id_set.end()
+                    && new_id_set.find(target_id) == new_id_set.end())
+                    continue;
+
                 const auto &target_plain = by_file[target_id];
 
                 // Score is intentionally asymmetric: target's plain weight
@@ -103,6 +151,16 @@ namespace comparison
                 sqlite3_reset(insert_stmt);
             }
         }
+
+        sqlite3_stmt *mark_seen_stmt = sql_utils::prepare(db, "INSERT OR IGNORE INTO comparison_seen (file_id) VALUES (?);");
+        for (const auto &file_id : file_ids)
+        {
+            sqlite3_bind_text(mark_seen_stmt, 1, file_id.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_step(mark_seen_stmt);
+            sqlite3_reset(mark_seen_stmt);
+        }
+        sqlite3_finalize(mark_seen_stmt);
+
         sql_utils::execute(db, "COMMIT;");
 
         sqlite3_finalize(insert_stmt);
