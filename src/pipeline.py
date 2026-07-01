@@ -3,7 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from config import ARTICLES_DIR, DB_PATH, REPO_ROOT
+from config import ARTICLES_DIR, DATAMUSE_CACHE_PATH, DB_PATH, REPO_ROOT
 from db import get_connection
 from ingest import ingest_folder
 from tag_topics import tag_all_articles
@@ -20,14 +20,19 @@ def _run_engine(args: list[str]) -> None:
         raise RuntimeError(f"retrieval_engine {args[0]} failed with exit code {result.returncode}")
 
 
-def build(folder: Path = ARTICLES_DIR, db_path: Path = DB_PATH, full: bool = False) -> None:
+def build(
+    folder: Path = ARTICLES_DIR,
+    db_path: Path = DB_PATH,
+    full: bool = False,
+    cache_path: Path = DATAMUSE_CACHE_PATH,
+) -> None:
     if not ENGINE_BINARY.exists():
         raise FileNotFoundError(f"{ENGINE_BINARY} not found -- build it first (see run.bat/run.sh)")
 
     conn = get_connection(db_path)
     try:
         ingest_folder(folder, conn)
-        tag_all_articles(conn)
+        tag_all_articles(conn, cache_path=cache_path)
     finally:
         conn.close()
 

@@ -28,7 +28,7 @@ def test_pipeline_populates_all_tables(tmp_path, retrieval_engine_binary, monkey
     folder = _fixture_folder(tmp_path, FIXTURE_FILES)
     db_path = tmp_path / "studyapp.db"
 
-    pipeline_module.build(folder=folder, db_path=db_path, full=True)
+    pipeline_module.build(folder=folder, db_path=db_path, full=True, cache_path=tmp_path / "cache.json")
 
     conn = sqlite3.connect(db_path)
     assert conn.execute("SELECT COUNT(*) FROM file_info").fetchone()[0] == 2
@@ -43,7 +43,7 @@ def test_pipeline_incremental_adds_new_file_without_touching_old_pairs(tmp_path,
     folder = _fixture_folder(tmp_path, FIXTURE_FILES)
     db_path = tmp_path / "studyapp.db"
 
-    pipeline_module.build(folder=folder, db_path=db_path, full=True)
+    pipeline_module.build(folder=folder, db_path=db_path, full=True, cache_path=tmp_path / "cache.json")
     conn = sqlite3.connect(db_path)
     before = conn.execute(
         "SELECT distance FROM comparison WHERE source_id='10.1016/j.aej.2026.04.048' "
@@ -52,7 +52,7 @@ def test_pipeline_incremental_adds_new_file_without_touching_old_pairs(tmp_path,
     conn.close()
 
     (folder / EXTRA_FILE).write_bytes((ARTICLES_DIR / EXTRA_FILE).read_bytes())
-    pipeline_module.build(folder=folder, db_path=db_path, full=False)
+    pipeline_module.build(folder=folder, db_path=db_path, full=False, cache_path=tmp_path / "cache.json")
 
     conn = sqlite3.connect(db_path)
     after = conn.execute(

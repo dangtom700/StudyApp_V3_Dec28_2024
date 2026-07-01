@@ -57,7 +57,7 @@ def test_incremental_build_equals_full_rebuild_for_new_pairs(tmp_path, retrieval
         (folder / filename).write_bytes((ARTICLES_DIR / filename).read_bytes())
 
     incremental_db = tmp_path / "incremental.db"
-    pipeline_module.build(folder=folder, db_path=incremental_db, full=True)
+    pipeline_module.build(folder=folder, db_path=incremental_db, full=True, cache_path=tmp_path / "cache.json")
 
     conn = sqlite3.connect(incremental_db)
     old_pairs_before = dict(
@@ -68,7 +68,7 @@ def test_incremental_build_equals_full_rebuild_for_new_pairs(tmp_path, retrieval
 
     for filename in FIXTURE_FILES[6:]:
         (folder / filename).write_bytes((ARTICLES_DIR / filename).read_bytes())
-    pipeline_module.build(folder=folder, db_path=incremental_db, full=False)
+    pipeline_module.build(folder=folder, db_path=incremental_db, full=False, cache_path=tmp_path / "cache.json")
 
     conn = sqlite3.connect(incremental_db)
     placeholders = ",".join("?" * len(old_pairs_before))
@@ -90,7 +90,7 @@ def test_incremental_build_equals_full_rebuild_for_new_pairs(tmp_path, retrieval
     full_folder.mkdir()
     for filename in FIXTURE_FILES:
         (full_folder / filename).write_bytes((ARTICLES_DIR / filename).read_bytes())
-    pipeline_module.build(folder=full_folder, db_path=full_db, full=True)
+    pipeline_module.build(folder=full_folder, db_path=full_db, full=True, cache_path=tmp_path / "full_cache.json")
 
     old_pair_keys = set(old_pairs_before.keys())
     new_pairs = [
