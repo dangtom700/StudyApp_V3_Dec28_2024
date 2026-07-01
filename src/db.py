@@ -25,6 +25,32 @@ CREATE TABLE IF NOT EXISTS article_tags (
     source TEXT NOT NULL CHECK(source IN ('intrinsic', 'expanded')),
     PRIMARY KEY (file_id, tag, source)
 );
+
+CREATE TABLE IF NOT EXISTS relation_distance_filtered (
+    file_id   TEXT NOT NULL,
+    token     TEXT NOT NULL,
+    frequency INTEGER NOT NULL,
+    weight    REAL NOT NULL,
+    PRIMARY KEY (file_id, token)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS tf_idf (
+    word      TEXT NOT NULL PRIMARY KEY,
+    freq      INTEGER NOT NULL,
+    doc_count INTEGER NOT NULL,
+    tf_idf    REAL NOT NULL
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS comparison (
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    distance  REAL NOT NULL CHECK(distance > 0.0),
+    PRIMARY KEY (source_id, target_id)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS comparison_seen (
+    file_id TEXT PRIMARY KEY REFERENCES file_info(file_id)
+);
 """
 
 
