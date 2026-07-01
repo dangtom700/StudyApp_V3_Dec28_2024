@@ -9,16 +9,34 @@ from modules.extract_text import extract_article
 from modules.word_freq import tokenize
 
 
+def _purge_file(conn: sqlite3.Connection, file_id: str) -> None:
+    conn.execute("DELETE FROM article_tags WHERE file_id = ?", (file_id,))
+    conn.execute("DELETE FROM relation_distance_filtered WHERE file_id = ?", (file_id,))
+    conn.execute("DELETE FROM comparison WHERE source_id = ? OR target_id = ?", (file_id, file_id))
+    conn.execute("DELETE FROM comparison_seen WHERE file_id = ?", (file_id,))
+    conn.execute("DELETE FROM article_text WHERE file_id = ?", (file_id,))
+    conn.execute("DELETE FROM file_info WHERE file_id = ?", (file_id,))
+
+
 def ingest_pdf(
     pdf_path: Path, conn: sqlite3.Connection, token_freq_dir: Path = TOKEN_FREQ_DIR
 ) -> str:
     article = extract_article(pdf_path)
 
     existing = conn.execute(
-        "SELECT file_id FROM file_info WHERE file_id = ?", (article.file_id,)
+        "SELECT content_sha256 FROM file_info WHERE file_id = ?", (article.file_id,)
     ).fetchone()
-    if existing is not None:
+    if existing is not None and existing[0] == article.content_sha256:
         return article.file_id
+    if existing is not None:
+        _purge_file(conn, article.file_id)
+
+    orphan = conn.execute(
+        "SELECT file_id FROM file_info WHERE source_path = ? AND file_id != ?",
+        (str(pdf_path), article.file_id),
+    ).fetchone()
+    if orphan is not None:
+        _purge_file(conn, orphan[0])
 
     freq = tokenize(article.full_text)
     token_freq_dir.mkdir(parents=True, exist_ok=True)

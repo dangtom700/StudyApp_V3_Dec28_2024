@@ -47,6 +47,68 @@ def test_ingest_pdf_is_idempotent(tmp_path):
     assert count == 1
 
 
+def test_ingest_pdf_updates_on_content_change(tmp_path):
+    conn = get_connection(tmp_path / "test.db")
+    token_freq_dir = tmp_path / "token_freq"
+
+    file_id = ingest_pdf(FIXTURE, conn, token_freq_dir=token_freq_dir)
+    conn.execute("UPDATE file_info SET content_sha256 = 'stale' WHERE file_id = ?", (file_id,))
+    conn.commit()
+
+    ingest_pdf(FIXTURE, conn, token_freq_dir=token_freq_dir)
+
+    row = conn.execute("SELECT content_sha256 FROM file_info WHERE file_id = ?", (file_id,)).fetchone()
+    assert row[0] != "stale"
+
+
+def test_ingest_pdf_purges_stale_downstream_data_on_content_change(tmp_path):
+    conn = get_connection(tmp_path / "test.db")
+    token_freq_dir = tmp_path / "token_freq"
+
+    file_id = ingest_pdf(FIXTURE, conn, token_freq_dir=token_freq_dir)
+    conn.execute("UPDATE file_info SET content_sha256 = 'stale' WHERE file_id = ?", (file_id,))
+    conn.execute("INSERT INTO article_tags (file_id, tag, source) VALUES (?, 'oldtag', 'intrinsic')", (file_id,))
+    conn.execute(
+        "INSERT INTO relation_distance_filtered (file_id, token, frequency, weight) VALUES (?, 'oldtok', 1, 1.0)",
+        (file_id,),
+    )
+    conn.execute("INSERT INTO comparison_seen (file_id) VALUES (?)", (file_id,))
+    conn.commit()
+
+    ingest_pdf(FIXTURE, conn, token_freq_dir=token_freq_dir)
+
+    assert conn.execute("SELECT COUNT(*) FROM article_tags WHERE file_id = ?", (file_id,)).fetchone()[0] == 0
+    assert conn.execute(
+        "SELECT COUNT(*) FROM relation_distance_filtered WHERE file_id = ?", (file_id,)
+    ).fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM comparison_seen WHERE file_id = ?", (file_id,)).fetchone()[0] == 0
+
+
+def test_ingest_pdf_cleans_up_orphaned_row_on_source_path_reuse(tmp_path):
+    conn = get_connection(tmp_path / "test.db")
+    token_freq_dir = tmp_path / "token_freq"
+
+    conn.execute(
+        """
+        INSERT INTO file_info
+            (file_id, source_path, file_name, content_sha256, page_count, ingested_at, token_freq_path)
+        VALUES ('sha256:deadbeef', ?, 'stale.pdf', 'deadbeef', 1, '2020-01-01T00:00:00+00:00', NULL)
+        """,
+        (str(FIXTURE),),
+    )
+    conn.commit()
+
+    real_file_id = ingest_pdf(FIXTURE, conn, token_freq_dir=token_freq_dir)
+
+    assert real_file_id != "sha256:deadbeef"
+    assert conn.execute(
+        "SELECT COUNT(*) FROM file_info WHERE file_id = 'sha256:deadbeef'"
+    ).fetchone()[0] == 0
+    assert conn.execute(
+        "SELECT COUNT(*) FROM file_info WHERE file_id = ?", (real_file_id,)
+    ).fetchone()[0] == 1
+
+
 def test_ingest_folder_processes_all_pdfs(tmp_path):
     conn = get_connection(tmp_path / "test.db")
     token_freq_dir = tmp_path / "token_freq"
