@@ -26,18 +26,38 @@ namespace relational_distance
     {
         sqlite3 *db = sql_utils::open(db_path.string());
 
-        sql_utils::execute(db, "DROP TABLE IF EXISTS relation_distance_filtered;");
-        sql_utils::execute(db, R"(
-            CREATE TABLE relation_distance_filtered (
-                file_id   TEXT NOT NULL,
-                token     TEXT NOT NULL,
-                frequency INTEGER NOT NULL,
-                weight    REAL NOT NULL,
-                PRIMARY KEY (file_id, token)
-            ) WITHOUT ROWID;
-        )");
+        if (config.incremental)
+        {
+            sql_utils::execute(db, R"(
+                CREATE TABLE IF NOT EXISTS relation_distance_filtered (
+                    file_id   TEXT NOT NULL,
+                    token     TEXT NOT NULL,
+                    frequency INTEGER NOT NULL,
+                    weight    REAL NOT NULL,
+                    PRIMARY KEY (file_id, token)
+                ) WITHOUT ROWID;
+            )");
+        }
+        else
+        {
+            sql_utils::execute(db, "DROP TABLE IF EXISTS relation_distance_filtered;");
+            sql_utils::execute(db, R"(
+                CREATE TABLE relation_distance_filtered (
+                    file_id   TEXT NOT NULL,
+                    token     TEXT NOT NULL,
+                    frequency INTEGER NOT NULL,
+                    weight    REAL NOT NULL,
+                    PRIMARY KEY (file_id, token)
+                ) WITHOUT ROWID;
+            )");
+        }
 
-        sqlite3_stmt *file_stmt = sql_utils::prepare(db, "SELECT file_id, token_freq_path FROM file_info;");
+        std::string file_query = "SELECT file_id, token_freq_path FROM file_info;";
+        if (config.incremental)
+            file_query = "SELECT file_id, token_freq_path FROM file_info "
+                         "WHERE file_id NOT IN (SELECT DISTINCT file_id FROM relation_distance_filtered);";
+
+        sqlite3_stmt *file_stmt = sql_utils::prepare(db, file_query);
         sqlite3_stmt *insert_stmt = sql_utils::prepare(db,
             "INSERT INTO relation_distance_filtered (file_id, token, frequency, weight) VALUES (?, ?, ?, ?);");
 

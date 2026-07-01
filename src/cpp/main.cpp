@@ -45,6 +45,8 @@ int main(int argc, char **argv)
                     config.min_token_frequency = std::stoi(require_arg(args, i, args[i]));
                 else if (args[i] == "--persist-frequency-threshold")
                     config.persist_frequency_threshold = std::stoi(require_arg(args, i, args[i]));
+                else if (args[i] == "--incremental")
+                    config.incremental = true;
                 else
                     throw std::runtime_error("unknown flag: " + args[i]);
             }

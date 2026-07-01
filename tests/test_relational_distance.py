@@ -65,3 +65,38 @@ def test_relational_distance_is_full_rebuild_not_incremental(tmp_path, retrieval
         "SELECT COUNT(*) FROM relation_distance_filtered WHERE file_id = '10.1016/j.aej.2026.04.048' AND token = 'model'"
     ).fetchone()[0]
     assert count == 1
+
+
+def test_relational_distance_incremental_skips_existing_files(tmp_path, retrieval_engine_binary):
+    db_path = _make_two_article_db(tmp_path)
+    run_engine(retrieval_engine_binary, ["--compute-relational-distance", str(db_path)])
+
+    conn = sqlite3.connect(db_path)
+    before = conn.execute(
+        "SELECT frequency, weight FROM relation_distance_filtered "
+        "WHERE file_id = '10.1016/j.aej.2026.04.048' AND token = 'model'"
+    ).fetchone()
+    conn.close()
+
+    token_freq_dir = tmp_path / "token_freq"
+    conn = get_connection(db_path)
+    ingest_pdf(
+        ARTICLES_DIR / "A-closed-loop-control-strategy-for-automotive-EHB-base_2026_Control-Engineer.pdf",
+        conn,
+        token_freq_dir=token_freq_dir,
+    )
+    conn.close()
+
+    run_engine(retrieval_engine_binary, ["--compute-relational-distance", str(db_path), "--incremental"])
+
+    conn = sqlite3.connect(db_path)
+    after = conn.execute(
+        "SELECT frequency, weight FROM relation_distance_filtered "
+        "WHERE file_id = '10.1016/j.aej.2026.04.048' AND token = 'model'"
+    ).fetchone()
+    new_file_count = conn.execute(
+        "SELECT COUNT(*) FROM relation_distance_filtered WHERE file_id = '10.1016/j.conengprac.2026.106951'"
+    ).fetchone()[0]
+
+    assert after == before
+    assert new_file_count > 0
