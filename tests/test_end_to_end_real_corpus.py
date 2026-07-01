@@ -45,3 +45,67 @@ def test_full_pipeline_composes_correctly_on_real_corpus(tmp_path, retrieval_eng
     assert conn.execute("SELECT COUNT(*) FROM tf_idf").fetchone()[0] == 1827
     assert conn.execute("SELECT COUNT(*) FROM comparison").fetchone()[0] == 54
     assert conn.execute("SELECT COUNT(*) FROM comparison WHERE source_id = target_id").fetchone()[0] == 0
+
+
+def test_incremental_build_equals_full_rebuild_for_new_pairs(tmp_path, retrieval_engine_binary, monkeypatch):
+    import pipeline as pipeline_module
+    monkeypatch.setattr(pipeline_module, "ENGINE_BINARY", retrieval_engine_binary)
+
+    folder = tmp_path / "corpus"
+    folder.mkdir()
+    for filename in FIXTURE_FILES[:6]:
+        (folder / filename).write_bytes((ARTICLES_DIR / filename).read_bytes())
+
+    incremental_db = tmp_path / "incremental.db"
+    pipeline_module.build(folder=folder, db_path=incremental_db, full=True)
+
+    conn = sqlite3.connect(incremental_db)
+    old_pairs_before = dict(
+        conn.execute("SELECT source_id || '|' || target_id, distance FROM comparison").fetchall()
+    )
+    conn.close()
+    assert len(old_pairs_before) > 0
+
+    for filename in FIXTURE_FILES[6:]:
+        (folder / filename).write_bytes((ARTICLES_DIR / filename).read_bytes())
+    pipeline_module.build(folder=folder, db_path=incremental_db, full=False)
+
+    conn = sqlite3.connect(incremental_db)
+    placeholders = ",".join("?" * len(old_pairs_before))
+    old_pairs_after = dict(
+        conn.execute(
+            f"SELECT source_id || '|' || target_id, distance FROM comparison "
+            f"WHERE source_id || '|' || target_id IN ({placeholders})",
+            list(old_pairs_before.keys()),
+        ).fetchall()
+    )
+    all_pairs_after = conn.execute(
+        "SELECT source_id, target_id, distance FROM comparison"
+    ).fetchall()
+    conn.close()
+    assert old_pairs_after == old_pairs_before
+
+    full_db = tmp_path / "full.db"
+    full_folder = tmp_path / "full_corpus"
+    full_folder.mkdir()
+    for filename in FIXTURE_FILES:
+        (full_folder / filename).write_bytes((ARTICLES_DIR / filename).read_bytes())
+    pipeline_module.build(folder=full_folder, db_path=full_db, full=True)
+
+    old_pair_keys = set(old_pairs_before.keys())
+    new_pairs = [
+        (source_id, target_id, distance)
+        for source_id, target_id, distance in all_pairs_after
+        if f"{source_id}|{target_id}" not in old_pair_keys
+    ]
+    assert len(new_pairs) > 0
+
+    conn_full = sqlite3.connect(full_db)
+    for source_id, target_id, distance in new_pairs:
+        full_distance = conn_full.execute(
+            "SELECT distance FROM comparison WHERE source_id = ? AND target_id = ?",
+            (source_id, target_id),
+        ).fetchone()
+        assert full_distance is not None
+        assert full_distance[0] == distance
+    conn_full.close()
