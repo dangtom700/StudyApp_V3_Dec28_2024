@@ -2,14 +2,9 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-echo "Building C++ retrieval engine..."
-cmake -B build -DCMAKE_PREFIX_PATH=C:/msys64/ucrt64 -G "MinGW Makefiles" .
-cmake --build build
+# Query the corpus with your prompt.
+#   1. Setup the program once:   ./setup.sh   (builds the index)
+#   2. Set the prompt:           edit PROMPT.txt and paste your query (essay-length is fine)
+#   3. Query the result:         ./run.sh     (add --top N or --all to change how many show)
 
-echo "Setting up NLTK corpora..."
-conda run -n StudyAssistant python src/setup_nltk.py
-
-echo "Running StudyApp V3 build pipeline..."
-conda run -n StudyAssistant python src/pipeline.py "$@"
-
-echo "Done."
+conda run -n StudyAssistant python src/query.py "$@"
