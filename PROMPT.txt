@@ -1,1 +1,53 @@
-Thermal management theme controller using explicit model with proposed controller design with data from test labs for verification
+# Original one-line query (kept for reference; '#' lines are ignored by query.py):
+#   Thermal management theme controller using explicit model with proposed
+#   controller design with data from test labs for verification
+#
+# Note: the tokenizer strips punctuation BEFORE splitting words, so hyphenated
+# terms collapse into junk ("model-predictive" -> "modelpredictive"). Write
+# compound terms as separate words, as below.
+
+I am looking for work on thermal management and temperature control, where the
+controller is built on an explicit process model rather than tuned purely by
+hand or learned as a black box. The core interest is controller design for
+thermal systems: regulating temperature, managing heat generation and heat
+removal, and holding a thermal setpoint under changing load and changing
+ambient conditions.
+
+By explicit model I mean a model that is written down and used directly inside
+the control law: a first principles physical model, an energy balance, a heat
+transfer model, a lumped parameter or lumped capacitance thermal network, a
+grey box or physics based model, a reduced order model, a state space
+formulation with identified thermal resistance and thermal capacitance
+parameters. Papers that derive the thermal dynamics analytically and then embed
+those dynamics in the controller are the target. This includes explicit model
+predictive control, model based predictive control, model based feedback
+control, internal model control, feedforward compensation driven by the model,
+and observer or state estimator designs such as a Kalman filter that
+reconstruct unmeasured internal temperatures from surface or sensor
+measurements.
+
+I want papers that propose a controller design, not only papers that model or
+simulate thermal behaviour. The proposed design should be described concretely:
+the control structure, the control law and its derivation, tuning of the
+controller parameters, stability analysis, constraint handling on temperature
+limits and actuator effort, and the optimization or cost function if a
+predictive or optimal control formulation is used. Comparison against a
+baseline controller such as a proportional integral derivative controller, a
+bang bang or on off thermostat, or a rule based strategy is welcome.
+
+Verification must be grounded in measured data, not simulation alone. I am
+looking for experimental validation using data from a test laboratory, a test
+bench, a test rig, a test cell, a prototype, or a hardware in the loop setup:
+model identification and calibration from laboratory measurements, model
+validation against measured temperature trajectories, and closed loop
+experiments that demonstrate tracking accuracy, overshoot, settling time,
+steady state error, disturbance rejection, and energy consumption or efficiency
+of the cooling strategy. Benchmarking the proposed controller against
+laboratory test data, and quantifying the model error or prediction error
+against those measurements, is central.
+
+Relevant application domains include battery thermal management, electric
+vehicle and power electronics cooling, electronics and chip cooling, heat
+exchangers, heating ventilation and air conditioning, building thermal
+management, furnaces and thermal processes, liquid cooling loops, fans, pumps,
+coolant flow control, and thermoelectric or Peltier cooling.
