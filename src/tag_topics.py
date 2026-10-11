@@ -13,7 +13,8 @@ from modules.topic_tags import (
 
 def tag_article(
     file_id: str, full_text: str, conn: sqlite3.Connection, cache: dict[str, list[str]]
-) -> None:
+) -> tuple[int, int]:
+    """Writes intrinsic + Datamuse-expanded tags; returns (intrinsic, expanded) counts."""
     keywords = extract_intrinsic_keywords(full_text)
     if not keywords:
         abstract_text = extract_abstract_text(full_text)
@@ -39,6 +40,7 @@ def tag_article(
         )
 
     conn.commit()
+    return len(intrinsic_tags), len(expanded_tags)
 
 
 def tag_all_articles(conn: sqlite3.Connection, cache_path: Path = DATAMUSE_CACHE_PATH) -> int:
@@ -53,10 +55,19 @@ def tag_all_articles(conn: sqlite3.Connection, cache_path: Path = DATAMUSE_CACHE
         """
     ).fetchall()
 
-    for file_id, full_text in untagged:
-        tag_article(file_id, full_text, conn, cache)
+    total = len(untagged)
+    if total == 0:
+        print("  Nothing new to tag", flush=True)
+    else:
+        print(f"  {total} articles need tagging (cache has {len(cache)} keywords)", flush=True)
+
+    for i, (file_id, full_text) in enumerate(untagged, start=1):
+        print(f"  ({i}/{total}) {file_id} ... ", end="", flush=True)
+        n_intrinsic, n_expanded = tag_article(file_id, full_text, conn, cache)
+        print(f"{n_intrinsic} intrinsic, {n_expanded} expanded tags", flush=True)
 
     save_cache(cache, cache_path)
+    print(f"  Datamuse cache saved ({len(cache)} keywords)", flush=True)
     return len(untagged)
 
 

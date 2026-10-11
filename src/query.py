@@ -37,7 +37,9 @@ def read_prompt(prompt_path: Path) -> str:
 def rank_prompt(prompt_text: str, db_path: Path = DB_PATH, top: int | None = None):
     """Tokenize `prompt_text`, run the engine, and return a list of
     (rank, file_id, score, file_name) tuples, best first."""
+    print("Tokenizing prompt...", flush=True)
     freq = tokenize_prompt(prompt_text)
+    print(f"  {len(freq)} unique terms", flush=True)
     if not freq:
         return []
 
@@ -47,6 +49,7 @@ def rank_prompt(prompt_text: str, db_path: Path = DB_PATH, top: int | None = Non
     try:
         json.dump(freq, tmp)
         tmp.close()
+        print("Ranking against the corpus...", flush=True)
         raw = _run_engine(Path(tmp.name), db_path)
     finally:
         os.unlink(tmp.name)
@@ -57,6 +60,8 @@ def rank_prompt(prompt_text: str, db_path: Path = DB_PATH, top: int | None = Non
             continue
         file_id, score = line.split("\t")
         ranked.append((file_id, float(score)))
+    shown = len(ranked) if top is None else min(top, len(ranked))
+    print(f"  {len(ranked)} matching articles, showing top {shown}", flush=True)
     if top is not None:
         ranked = ranked[:top]
 
@@ -117,6 +122,7 @@ def main() -> int:
     if not prompt_text:
         print(f"Prompt is empty -- add your query text to {prompt_path}.", file=sys.stderr)
         return 1
+    print(f"Reading prompt from {prompt_path.name} ({len(prompt_text.split())} words)", flush=True)
 
     top = None if args.all else args.top
     results = rank_prompt(prompt_text, db_path=db_path, top=top)
@@ -125,7 +131,7 @@ def main() -> int:
         print("No matching articles (none of the prompt's terms appear in the corpus).")
         return 0
 
-    print(f"Prompt: {prompt_path.name}\n")
+    print(f"\nPrompt: {prompt_path.name}\n")
     print(f"{'Rank':>4}  {'Score':>7}  Article")
     print(f"{'-' * 4}  {'-' * 7}  {'-' * 48}")
     for rank, file_id, score, file_name in results:

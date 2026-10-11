@@ -7,9 +7,9 @@ cmake -B build -DCMAKE_PREFIX_PATH=C:/msys64/ucrt64 -G "MinGW Makefiles" . || ex
 cmake --build build || exit /b 1
 
 echo Setting up NLTK corpora...
-conda run -n StudyAssistant python src/setup_nltk.py || exit /b 1
+conda run --no-capture-output -n StudyAssistant python src/setup_nltk.py || exit /b 1
 
 echo Running StudyApp V3 build pipeline...
-conda run -n StudyAssistant python src/pipeline.py %* || exit /b 1
+conda run --no-capture-output -n StudyAssistant python src/pipeline.py %* || exit /b 1
 
 echo Done.

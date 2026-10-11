@@ -21,13 +21,22 @@ def _purge_file(conn: sqlite3.Connection, file_id: str) -> None:
 def ingest_pdf(
     pdf_path: Path, conn: sqlite3.Connection, token_freq_dir: Path = TOKEN_FREQ_DIR
 ) -> str:
+    file_id, _ = _ingest_pdf(pdf_path, conn, token_freq_dir)
+    return file_id
+
+
+def _ingest_pdf(
+    pdf_path: Path, conn: sqlite3.Connection, token_freq_dir: Path
+) -> tuple[str, str]:
+    """Ingest one PDF; returns (file_id, status) where status is
+    "new", "updated" or "unchanged"."""
     article = extract_article(pdf_path)
 
     existing = conn.execute(
         "SELECT content_sha256 FROM file_info WHERE file_id = ?", (article.file_id,)
     ).fetchone()
     if existing is not None and existing[0] == article.content_sha256:
-        return article.file_id
+        return article.file_id, "unchanged"
     if existing is not None:
         _purge_file(conn, article.file_id)
 
@@ -65,13 +74,30 @@ def ingest_pdf(
         (article.file_id, article.full_text),
     )
     conn.commit()
-    return article.file_id
+    return article.file_id, "updated" if existing is not None else "new"
 
 
 def ingest_folder(
     folder: Path, conn: sqlite3.Connection, token_freq_dir: Path = TOKEN_FREQ_DIR
 ) -> list[str]:
-    return [ingest_pdf(pdf_path, conn, token_freq_dir) for pdf_path in sorted(folder.glob("*.pdf"))]
+    pdf_paths = sorted(folder.glob("*.pdf"))
+    total = len(pdf_paths)
+    print(f"  Found {total} PDFs", flush=True)
+
+    file_ids = []
+    counts = {"new": 0, "updated": 0, "unchanged": 0}
+    for i, pdf_path in enumerate(pdf_paths, start=1):
+        print(f"  ({i}/{total}) {pdf_path.name} ... ", end="", flush=True)
+        file_id, status = _ingest_pdf(pdf_path, conn, token_freq_dir)
+        print(status, flush=True)
+        counts[status] += 1
+        file_ids.append(file_id)
+
+    print(
+        f"  new: {counts['new']}, updated: {counts['updated']}, unchanged: {counts['unchanged']}",
+        flush=True,
+    )
+    return file_ids
 
 
 if __name__ == "__main__":
