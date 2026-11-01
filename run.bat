@@ -7,4 +7,5 @@ cd /d "%~dp0"
 @REM   2. Set the prompt:           edit PROMPT.txt and paste your query (essay-length is fine)
 @REM   3. Query the result:         run.bat      (add --top N or --all to change how many show)
 
-conda run --no-capture-output -n StudyAssistant python src/query.py --top 50 %* || exit /b 1
+python src\pipeline.py
+python src\query.py --top 100

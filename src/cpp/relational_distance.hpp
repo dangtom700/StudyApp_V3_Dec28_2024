@@ -9,7 +9,7 @@ namespace relational_distance
     {
         int max_token_length = 18;
         int min_token_frequency = 1;
-        int persist_frequency_threshold = 3;
+        int persist_frequency_threshold = 1;
         bool incremental = false;
     };
 
