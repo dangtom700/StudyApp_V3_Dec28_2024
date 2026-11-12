@@ -1,65 +1,61 @@
-# Topic: Fundamentals of fuel cells -- PEMFC modelling with controllable inputs
-# Goal: find corpus articles whose models expose manipulable control inputs
-#       (air/hydrogen flow, stoichiometry, cathode pressure, coolant flow,
-#       humidity setpoint, load current) rather than static performance fits.
-# Use: run.bat prompts/fuel-cell-controllable-model.txt --top 25
+# Topic: Test and validation engineering for mechatronic and electromechanical products
+# Goal: find books that build the test engineer's competency stack -- measurement and
+#       metrology, sensors and instrumentation, data acquisition, engineering statistics
+#       and design of experiments, reliability, quality assurance, failure and root-cause
+#       analysis, fatigue and durability, and vibration and environmental testing.
+# Use: paste into PROMPT.txt, then run prompt.bat
 
-Proton exchange membrane fuel cell modelling for closed-loop control. The goal is a
-simplified but physically grounded dynamic model of a PEM fuel cell stack whose inputs are
-genuine control variables, so that a feedback controller can be designed around it and the
-optimal operating region identified.
+Test and validation engineering for physical hardware. The goal is to become competent at
+turning product requirements into test plans, building and automating instrumented test
+benches, running functional, performance, environmental and reliability tests on real
+hardware, analysing the resulting data with sound statistics, and driving root cause
+analysis and corrective action when a unit fails. This is the hands on discipline of
+verification and validation for mechatronic, electromechanical, electronic and mechanical
+products, distinct from pure design and from software quality assurance.
 
-The cell voltage model follows the polarization curve: the reversible Nernst open circuit
-voltage minus activation overpotential, ohmic overpotential and concentration
-overpotential, as a function of current density. Power density and net system power follow
-from voltage times current density. The electrochemical model is parameterised by stack
-temperature, oxygen partial pressure, hydrogen partial pressure, cathode and anode
-pressure, membrane water content and membrane proton conductivity. Charge double layer
-capacitance sets the fast transient voltage response. The exchange current density, the
-limiting current density, the Tafel slope and the ohmic membrane resistance are fitted
-parameters of the electrochemical model.
+Measurement science and metrology. The foundation is the trustworthiness of every reading:
+accuracy, precision and resolution, systematic and random error, the quantification of
+measurement uncertainty and its propagation, calibration, and an unbroken traceability
+chain back to national measurement standards. A measurement is only evidence if its
+uncertainty is known.
 
-Controlled variables and manipulated inputs. The air supply subsystem is driven by a
-compressor or blower whose motor voltage sets the cathode air mass flow rate through the
-supply manifold and return manifold. The oxygen excess ratio, also called air
-stoichiometry or oxygen stoichiometric ratio, is the primary controlled variable: too low
-causes oxygen starvation and stack voltage collapse, too high wastes parasitic compressor
-power and lowers net efficiency. There is therefore an optimal oxygen excess ratio setpoint
-that maximises net system efficiency. Hydrogen supply is regulated by an anode inlet valve
-or pressure regulator, with anode recirculation and purge. Cathode pressure is regulated by
-a back pressure valve.
+Sensors, transducers and signal conditioning. Strain gauges and load cells read through a
+Wheatstone bridge, thermocouples with cold junction compensation, resistance temperature
+detectors, piezoelectric and IEPE accelerometers, rotary and linear encoders, linear
+variable differential transformers, pressure and flow transducers. Each needs the correct
+excitation, amplification, filtering and grounding and shielding to turn a physical quantity
+into a clean electrical signal without corrupting it with noise.
 
-Thermal management and the temperature efficiency curve. A coolant loop with a pump and
-radiator fan controls stack temperature. The lumped thermal model balances electrochemical
-heat generation against coolant heat removal and ambient convection, giving the stack
-temperature dynamics. Coolant mass flow rate and coolant inlet temperature are the
-manipulated thermal inputs, and the stack operating temperature is the controlled variable.
-Temperature affects reaction kinetics, membrane conductivity, water saturation pressure and
-therefore efficiency.
+Data acquisition and signal processing. Analog to digital conversion, sampling rate, the
+Nyquist sampling theorem, aliasing and the anti aliasing filter, quantisation, oversampling,
+windowing and the frequency content of a measured signal. The full chain from transducer
+through conditioning to recorded data is treated as one path.
 
-Water and humidity management. Membrane hydration governs proton conductivity. Dehydration
-raises ohmic resistance while flooding blocks the gas diffusion layer and the channels. The
-relative humidity of the inlet air is set by a membrane humidifier or by injection, making
-inlet relative humidity a manipulable input. Water transport combines electro osmotic drag
-and back diffusion across the membrane. Liquid water saturation and two phase flow matter
-for flooding.
+Engineering statistics and design of experiments. Probability distributions, descriptive
+statistics, hypothesis testing, confidence intervals, regression and analysis of variance,
+factorial and fractional factorial experiment design, response surface methods and Taguchi
+robust design, so that multi factor tests are planned efficiently and conclusions are
+defensible rather than anecdotal.
 
-Control design. State space formulation, linearization about an operating point, transfer
-functions, system identification from input output data, observers and extended Kalman
-filter state estimation for unmeasured states such as oxygen partial pressure and membrane
-water content. Controllers of interest include PID and feedforward, gain scheduling,
-feedback linearization, sliding mode control, robust control, adaptive control, linear
-quadratic regulator, and model predictive control with constraint handling on voltage,
-temperature and current limits. Extremum seeking and maximum efficiency point tracking
-locate the optimum online. Multivariable coupling between the air loop, the thermal loop
-and the humidity loop motivates multi input multi output control rather than single loop
-control.
+Statistical quality assurance and process control. Statistical process control and control
+charts, process capability indices, acceptance sampling, measurement system analysis and
+gauge repeatability and reproducibility, total quality and Six Sigma methods, quality
+function deployment, so the measurement process itself and the production process are both
+shown to be capable and in control.
 
-Analysis objectives. Simulate polarization curves of voltage versus current density and
-power density versus current density across operating states. Map efficiency against
-temperature, pressure, stoichiometry and humidity to find the optimal operating range.
-Quantify the efficiency improvement of a closed loop feedback system compared with fixed
-operating conditions. Study load following and transient response to a step change in
-current draw, and the effect of disturbances and independent variables such as ambient
-temperature, ambient pressure, altitude and inlet humidity. Implementation in MATLAB and
-Simulink with a lumped parameter dynamic model, validated against experimental stack data.
+Reliability engineering. Failure rate and hazard function, mean time between failures, the
+bathtub curve, the Weibull and exponential life distributions, censored life data,
+accelerated life testing and the Arrhenius model, reliability prediction and allocation,
+maintainability and availability, design for reliability across the product life cycle, and
+the reliability of electronic and mechanical assemblies.
+
+Failure analysis and root cause. Failure mode and effects analysis, fault tree analysis,
+practical root cause failure analysis, the five whys, fishbone diagrams, Pareto analysis and
+the eight disciplines corrective action loop, closing the loop from an observed failure back
+to a design or process fix.
+
+Fatigue, durability, vibration and environmental testing. Fatigue of materials and
+structures, stress life and strain life, damage accumulation and fatigue under random
+loading, structural dynamics and modal testing, random vibration, shock, and durability and
+environmental stress testing of products and structures. Model validation and uncertainty
+quantification tie the physical test back to the engineering model.
